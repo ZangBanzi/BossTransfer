@@ -1,3 +1,0 @@
-19456eda374a1ebd79a76ba3380d911f583ed7f342015068361be956ddb71434  bosstransfer-2.1.0-source.tar.gz
-2bbd0fdf596fbe74b6621e0ceeda778ad7ca591cf8a837a7835fb83e4ad188c5  bosstransfer-docker-2.1.0-linux-amd64.tar.gz
-bf42502be819da6fd570b67672923a102c5019d1e25fabb83e16deb2bdf66596  bosstransfer-docker-2.1.0-linux-arm64.tar.gz
