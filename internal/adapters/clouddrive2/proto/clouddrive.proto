@@ -1,0 +1,180 @@
+syntax = "proto3";
+
+package clouddrive;
+
+option go_package = "bosstransfer/internal/adapters/clouddrive2/internal/pb;pb";
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+// This is the smallest wire-compatible subset of the official CloudDrive2
+// v1.0.17 proto needed by BossTransfer. Field numbers and RPC names must stay
+// aligned with https://www.clouddrive2.com/api/clouddrive.proto.
+service CloudDriveFileSrv {
+  rpc GetSystemInfo(google.protobuf.Empty) returns (CloudDriveSystemInfo) {}
+  rpc GetToken(GetTokenRequest) returns (JWTToken) {}
+  rpc GetApiTokenInfo(StringValue) returns (TokenInfo) {}
+  rpc GetSubFiles(ListSubFileRequest) returns (stream SubFilesReply) {}
+  rpc GetSearchResults(SearchRequest) returns (stream SubFilesReply) {}
+  rpc CopyFile(CopyFileRequest) returns (FileOperationResult) {}
+  rpc AddOfflineFiles(AddOfflineFileRequest) returns (FileOperationResult) {}
+  rpc AddSharedLink(AddSharedLinkRequest) returns (google.protobuf.Empty) {}
+  rpc GetMountPoints(google.protobuf.Empty) returns (GetMountPointsResult) {}
+  rpc GetDownloadUrlPath(GetDownloadUrlPathRequest) returns (DownloadUrlPathInfo) {}
+}
+
+message GetTokenRequest {
+  string userName = 1;
+  string password = 2;
+  optional string totpCode = 3;
+}
+
+message JWTToken {
+  bool success = 1;
+  string errorMessage = 2;
+  string token = 3;
+  google.protobuf.Timestamp expiration = 4;
+}
+
+message CloudDriveSystemInfo {
+  bool IsLogin = 1;
+  string UserName = 2;
+  bool SystemReady = 3;
+  optional string SystemMessage = 4;
+  optional bool hasError = 5;
+}
+
+message StringValue {
+  string value = 1;
+}
+
+message TokenPermissions {
+  bool allow_list = 1;
+  bool allow_search = 2;
+  bool allow_list_local = 3;
+  bool allow_read = 7;
+  bool allow_copy = 10;
+  bool allow_add_offline_download = 16;
+  bool allow_shared_links = 19;
+  bool allow_get_mounts = 25;
+  bool allow_get_transfer_tasks = 27;
+  bool allow_get_cloud_apis = 29;
+  bool allow_push_message = 41;
+}
+
+message ListSubFileRequest {
+  string path = 1;
+  bool forceRefresh = 2;
+  optional bool checkExpires = 3;
+}
+
+message SearchRequest {
+  string path = 1;
+  string searchFor = 2;
+  bool forceRefresh = 3;
+  bool fuzzyMatch = 4;
+  optional bool addResultToMountedSearchFolder = 5;
+  optional bool contentSearch = 6;
+}
+
+message SubFilesReply { repeated CloudDriveFile subFiles = 1; }
+
+message CloudDriveFile {
+  string id = 1;
+  string name = 2;
+  string fullPathName = 3;
+  int64 size = 4;
+  enum FileType {
+    Directory = 0;
+    File = 1;
+    Other = 2;
+  }
+  FileType fileType = 5;
+  google.protobuf.Timestamp createTime = 6;
+  google.protobuf.Timestamp writeTime = 7;
+  google.protobuf.Timestamp accessTime = 8;
+  string thumbnailUrl = 10;
+  string previewUrl = 11;
+  string originalPath = 14;
+  bool isDirectory = 30;
+  bool isRoot = 31;
+  bool isCloudRoot = 32;
+  bool isCloudDirectory = 33;
+  bool isCloudFile = 34;
+  bool isSearchResult = 35;
+  bool isForbidden = 36;
+  bool canSearch = 63;
+  bool canOfflineDownload = 66;
+}
+
+message FileOperationResult {
+  bool success = 1;
+  string errorMessage = 2;
+  repeated string resultFilePaths = 3;
+}
+
+message CopyFileRequest {
+  enum ConflictPolicy {
+    Overwrite = 0;
+    Rename = 1;
+    Skip = 2;
+  }
+  repeated string theFilePaths = 1;
+  string destPath = 2;
+  optional ConflictPolicy conflictPolicy = 3;
+  optional bool handleConflictRecursively = 5;
+}
+
+message AddOfflineFileRequest {
+  string urls = 1;
+  string toFolder = 2;
+  optional uint64 checkFolderAfterSecs = 3;
+}
+
+message AddSharedLinkRequest {
+  string sharedLinkUrl = 1;
+  optional string sharedPassword = 2;
+  string toFolder = 3;
+}
+
+message GetDownloadUrlPathRequest {
+  string path = 1;
+  bool preview = 2;
+  bool lazy_read = 3;
+  bool get_direct_url = 4;
+}
+
+message DownloadUrlPathInfo {
+  string downloadUrlPath = 1;
+  optional uint64 expiresIn = 2;
+  optional string directUrl = 3;
+  optional string userAgent = 4;
+  map<string, string> additionalHeaders = 5;
+}
+
+message TokenInfo {
+  // Official field 1 contains the token itself. It is intentionally omitted
+  // so callers cannot accidentally log a token echoed by the server.
+  string rootDir = 2;
+  TokenPermissions permissions = 3;
+  optional uint64 expires_in = 4;
+  string friendly_name = 5;
+}
+
+message MountPoint {
+  string mountPoint = 1;
+  string sourceDir = 2;
+  bool localMount = 3;
+  bool readOnly = 4;
+  bool autoMount = 5;
+  uint32 uid = 6;
+  uint32 gid = 7;
+  string permissions = 8;
+  bool isMounted = 9;
+  string failReason = 10;
+  string name = 11;
+}
+
+message GetMountPointsResult {
+  repeated MountPoint mountPoints = 1;
+}

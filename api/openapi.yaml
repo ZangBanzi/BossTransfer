@@ -1,0 +1,534 @@
+openapi: 3.1.0
+info:
+  title: BossTransfer API
+  version: 2.1.0
+  description: 中央授权、115 资源搜索、客户秒传与本地下载 API。
+servers:
+  - url: /api/v1
+
+paths:
+  /health/live:
+    get:
+      summary: 进程存活检查
+      responses:
+        "200": { description: 服务运行中 }
+  /health/ready:
+    get:
+      summary: 服务就绪检查
+      responses:
+        "200": { description: 服务就绪 }
+        "503": { description: 依赖未就绪 }
+
+  /manager/auth/login:
+    post:
+      summary: 管理端登录
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200": { description: 登录成功 }
+        "401": { $ref: "#/components/responses/Error" }
+  /manager/auth/logout:
+    post:
+      summary: 管理端退出
+      responses:
+        "200": { description: 已退出 }
+  /manager/auth/session:
+    get:
+      summary: 读取管理端登录会话
+      responses:
+        "200": { description: 会话状态 }
+  /manager/auth/credentials:
+    put:
+      summary: 修改管理端账号密码
+      responses:
+        "200": { description: 已保存 }
+
+  /manager/catalog:
+    get:
+      summary: 读取管理员 115 资源配置
+      responses:
+        "200":
+          description: 资源配置
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  catalog: { $ref: "#/components/schemas/Account115" }
+    put:
+      summary: 保存 115 AppID 或资源搜索目录
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                client_id: { type: string }
+                folder_id: { type: string }
+                folder_name: { type: string }
+      responses:
+        "200": { description: 已保存 }
+  /manager/115/auth/start:
+    post:
+      summary: 开始绑定管理员 115
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                client_id: { type: string }
+      responses:
+        "200": { $ref: "#/components/responses/Auth115" }
+  /manager/115/auth/status:
+    get:
+      summary: 查询管理员 115 扫码状态
+      responses:
+        "200": { $ref: "#/components/responses/Auth115" }
+  /manager/115/directories:
+    get:
+      summary: 浏览管理员 115 目录
+      parameters:
+        - in: query
+          name: cid
+          schema: { type: string, default: "0" }
+      responses:
+        "200": { $ref: "#/components/responses/Directories115" }
+  /manager/115/account:
+    delete:
+      summary: 解除管理员 115 绑定
+      responses:
+        "200": { description: 已解除 }
+  /manager/summary:
+    get:
+      summary: 管理端版本与授权数量
+      responses:
+        "200": { description: 管理端摘要 }
+
+  /manager/licenses:
+    get:
+      summary: 客户授权列表
+      responses:
+        "200": { description: 授权列表 }
+    post:
+      summary: 创建客户授权并签发一次性授权码
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateLicense" }
+      responses:
+        "201": { description: 已创建，完整授权码只在本响应出现 }
+  /manager/licenses/{licenseId}:
+    put:
+      summary: 修改有效期与设备数
+      parameters:
+        - $ref: "#/components/parameters/LicenseID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateLicense" }
+      responses:
+        "200": { description: 已更新 }
+    delete:
+      summary: 撤销客户授权
+      parameters:
+        - $ref: "#/components/parameters/LicenseID"
+      responses:
+        "200": { description: 已撤销 }
+  /manager/licenses/{licenseId}/codes:
+    post:
+      summary: 再签发一次性授权码
+      parameters:
+        - $ref: "#/components/parameters/LicenseID"
+      responses:
+        "201": { description: 已签发 }
+  /manager/devices/{deviceId}/release:
+    post:
+      summary: 释放客户设备
+      parameters:
+        - in: path
+          name: deviceId
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: 已释放 }
+
+  /licensing/activate:
+    post:
+      summary: 使用一次性授权码激活客户设备
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ActivateRequest" }
+      responses:
+        "200": { description: 激活成功 }
+  /licensing/heartbeat:
+    post:
+      summary: 客户设备续租
+      responses:
+        "200": { description: 续租成功 }
+
+  /catalog/app:
+    get:
+      summary: 已授权客户端读取 115 Open AppID
+      responses:
+        "200":
+          description: AppID
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [client_id]
+                properties:
+                  client_id: { type: string }
+  /catalog/search:
+    get:
+      summary: 搜索管理员 115 资源
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string, maxLength: 200 }
+      responses:
+        "200":
+          description: 加密资源结果
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/CatalogItem" }
+  /catalog/prepare:
+    post:
+      summary: 获取客户 115 秒传所需摘要
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ResourceRequest" }
+      responses:
+        "200":
+          description: 秒传摘要
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transfer: { $ref: "#/components/schemas/RapidTransfer" }
+  /catalog/sign:
+    post:
+      summary: 计算 115 秒传二次校验摘要
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/ResourceRequest"
+                - type: object
+                  required: [sign_check]
+                  properties:
+                    sign_check: { type: string, example: 0-1023 }
+      responses:
+        "200": { description: SHA1 sign_val }
+
+  /client/auth/login:
+    post:
+      summary: 客户端本地登录
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200": { description: 登录成功 }
+  /client/auth/logout:
+    post:
+      summary: 客户端本地退出
+      responses:
+        "200": { description: 已退出 }
+  /client/auth/session:
+    get:
+      summary: 读取客户端本地会话
+      responses:
+        "200": { description: 会话状态 }
+  /client/auth/credentials:
+    put:
+      summary: 修改客户端本地账号密码
+      responses:
+        "200": { description: 已保存 }
+  /client/license:
+    get:
+      summary: 读取本机激活状态
+      responses:
+        "200": { description: 激活状态 }
+  /client/license/activate:
+    post:
+      summary: 在线激活本机
+      responses:
+        "200": { description: 已激活 }
+  /client/config:
+    get:
+      summary: 读取系统下载目录配置与检查结果
+      responses:
+        "200": { description: 下载目录配置 }
+
+  /client/115:
+    get:
+      summary: 读取客户 115 绑定状态
+      responses:
+        "200": { description: 客户 115 状态 }
+  /client/115/auth/start:
+    post:
+      summary: 开始绑定客户自己的 115
+      responses:
+        "200": { $ref: "#/components/responses/Auth115" }
+  /client/115/auth/status:
+    get:
+      summary: 查询客户 115 扫码状态
+      responses:
+        "200": { $ref: "#/components/responses/Auth115" }
+  /client/115/directories:
+    get:
+      summary: 浏览客户 115 目录
+      responses:
+        "200": { $ref: "#/components/responses/Directories115" }
+  /client/115/folder:
+    put:
+      summary: 选择客户 115 秒传目录
+      responses:
+        "200": { description: 已保存 }
+  /client/115/account:
+    delete:
+      summary: 解除客户 115 绑定
+      responses:
+        "200": { description: 已解除 }
+
+  /client/setup:
+    get:
+      summary: 读取客户本地目录与 CD2 配置
+      responses:
+        "200": { description: 本地配置 }
+    put:
+      summary: 保存可视化选择的目录
+      responses:
+        "200": { description: 已保存 }
+  /client/directories:
+    get:
+      summary: 浏览系统下载目录
+      responses:
+        "200": { description: 目录列表 }
+  /client/clouddrive/connect:
+    post:
+      summary: 连接并验证客户 CloudDrive2
+      responses:
+        "200": { description: 连接成功和挂载列表 }
+  /client/clouddrive/directories:
+    get:
+      summary: 浏览客户 CD2 云端目录
+      responses:
+        "200": { description: 云端目录列表 }
+  /client/clouddrive/mounts:
+    get:
+      summary: 读取客户 CloudDrive2 挂载列表
+      responses:
+        "200": { description: 挂载列表 }
+  /client/qbittorrent:
+    get:
+      summary: 读取 qBittorrent 安全配置视图
+      responses:
+        "200": { description: qB 配置 }
+    put:
+      summary: 验证并保存 qBittorrent
+      responses:
+        "200": { description: 已验证并保存 }
+    delete:
+      summary: 删除 qBittorrent 配置
+      responses:
+        "200": { description: 已删除 }
+
+  /client/search:
+    get:
+      summary: 搜索并按影视文件夹归组
+      parameters:
+        - in: query
+          name: q
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: 影片组、文件和当前可用下载方式 }
+  /client/downloaders:
+    get:
+      summary: 读取客户本机可用下载方式
+      responses:
+        "200": { description: 系统、CD2、qB 可用状态 }
+  /client/downloads:
+    get:
+      summary: 下载任务列表
+      responses:
+        "200": { description: 任务列表 }
+    post:
+      summary: 秒传到客户 115 并发起下载
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resource_id, downloader]
+              properties:
+                resource_id: { type: string }
+                downloader:
+                  type: string
+                  enum: [system, clouddrive2, qbittorrent]
+      responses:
+        "202": { description: 任务已接受 }
+        "409": { $ref: "#/components/responses/Error" }
+        "422": { $ref: "#/components/responses/Error" }
+  /client/summary:
+    get:
+      summary: 客户端版本与任务摘要
+      responses:
+        "200": { description: 客户端摘要 }
+
+components:
+  securitySchemes:
+    managerSession:
+      type: apiKey
+      in: cookie
+      name: bosstransfer_manager_session
+    clientSession:
+      type: apiKey
+      in: cookie
+      name: bosstransfer_client_session
+    deviceBearer:
+      type: http
+      scheme: bearer
+  parameters:
+    LicenseID:
+      in: path
+      name: licenseId
+      required: true
+      schema: { type: string }
+  responses:
+    Error:
+      description: 请求失败
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Auth115:
+      description: 115 扫码授权状态
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              auth: { $ref: "#/components/schemas/Auth115" }
+              catalog: { $ref: "#/components/schemas/Account115" }
+    Directories115:
+      description: 115 子目录
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              cid: { type: string }
+              directories:
+                type: array
+                items: { $ref: "#/components/schemas/Directory115" }
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        message: { type: string }
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string }
+        password: { type: string, format: password }
+    CreateLicense:
+      type: object
+      required: [customer, device_limit]
+      properties:
+        customer: { type: string, maxLength: 256 }
+        expires_at: { type: string, format: date-time }
+        device_limit: { type: integer, minimum: 1, maximum: 10000 }
+    UpdateLicense:
+      type: object
+      required: [device_limit]
+      properties:
+        expires_at: { type: string, format: date-time }
+        device_limit: { type: integer, minimum: 1, maximum: 10000 }
+    ActivateRequest:
+      type: object
+      required: [code, installation_id, public_key]
+      properties:
+        code: { type: string }
+        installation_id: { type: string }
+        public_key: { type: string }
+        device_label: { type: string }
+    Account115:
+      type: object
+      required: [app_configured, bound, folder_id, folder_name]
+      properties:
+        client_id: { type: string }
+        app_configured: { type: boolean }
+        bound: { type: boolean }
+        user_id: { type: string }
+        user_name: { type: string }
+        avatar: { type: string }
+        expires_at: { type: string, format: date-time }
+        folder_id: { type: string }
+        folder_name: { type: string }
+    Auth115:
+      type: object
+      properties:
+        active: { type: boolean }
+        status: { type: string, enum: [idle, waiting, scanned, bound, expired] }
+        message: { type: string }
+        qrcode: { type: string }
+        qr_image_url: { type: string, format: uri }
+        bound: { type: boolean }
+    Directory115:
+      type: object
+      required: [id, parent_id, name]
+      properties:
+        id: { type: string }
+        parent_id: { type: string }
+        name: { type: string }
+    CatalogItem:
+      type: object
+      required: [resource_id, name, group_id, group_name, size, is_dir]
+      properties:
+        resource_id: { type: string, description: 绑定设备且短期有效的加密凭据 }
+        name: { type: string }
+        group_id: { type: string }
+        group_name: { type: string }
+        size: { type: integer, format: int64 }
+        is_dir: { type: boolean }
+        modified_at: { type: string, format: date-time }
+    ResourceRequest:
+      type: object
+      required: [resource_id]
+      properties:
+        resource_id: { type: string }
+    RapidTransfer:
+      type: object
+      required: [name, size, sha1, preid]
+      properties:
+        name: { type: string }
+        size: { type: integer, format: int64 }
+        sha1: { type: string }
+        preid: { type: string }
