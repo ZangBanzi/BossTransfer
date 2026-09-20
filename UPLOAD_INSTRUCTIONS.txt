@@ -1,0 +1,6 @@
+BossTransfer 2.1.0 GitHub web upload package
+
+1. Open 01-first-upload and drag everything inside it to GitHub Add file > Upload files. Commit directly to main.
+2. Open 02-second-upload and repeat. Commit directly to main.
+3. Do not upload this instruction file or either batch folder itself. Upload only their contents.
+4. Delete the old release archives and manifest files currently stored on the Code page. Put release archives under GitHub Releases.
