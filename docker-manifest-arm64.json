@@ -1,9 +1,0 @@
-﻿{
-    "ok":  true,
-    "version":  "2.1.0",
-    "arch":  "arm64",
-    "package_dir":  "bosstransfer-docker-2.1.0-linux-arm64",
-    "archive":  "bosstransfer-docker-2.1.0-linux-arm64.tar.gz",
-    "sha256":  "bf42502be819da6fd570b67672923a102c5019d1e25fabb83e16deb2bdf66596",
-    "bytes":  9234194
-}
